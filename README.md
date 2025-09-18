@@ -1,78 +1,362 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hans">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Portfolio</title>
-    <style>
-        body {font-family: Arial, sans-serif; margin: 0; padding: 0;}
-        header {background: #4a90e2; color: white; padding: 20px; text-align: center;}
-        nav a {margin: 0 15px; color: white; text-decoration: none;}
-        section {padding: 40px;}
-        h2 {border-bottom: 2px solid #4a90e2; padding-bottom: 10px;}
-        .skills, .projects {display: flex; flex-wrap: wrap; gap: 20px;}
-        .skill, .project {border: 1px solid #ddd; border-radius: 8px; padding: 20px; width: calc(33% - 40px); box-sizing: border-box;}
-        footer {background: #333; color: white; text-align: center; padding: 10px;}
-        @media (max-width: 768px) {
-            .skill, .project {width: 100%;}
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>橡皮筋声音—模拟器v3（独立音色＋右侧双示波器）</title>
+  <style>
+    :root{ --bg:#0b1220; --panel:#121a2b; --muted:#94a3b8; --text:#e5e7eb; }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b1220,#0f172a);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans",sans-serif}
+    header{padding:16px 24px;border-bottom:1px solid #1f2a44;display:flex;align-items:center;gap:12px}
+    header h1{font-size:20px;margin:0}
+    header small{color:var(--muted)}
+    .app{display:grid;grid-template-columns:360px 1fr 360px;gap:16px;padding:16px}
+    .card{background:var(--panel);border:1px solid #1e293b;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+    .card h2{margin:0;padding:12px 16px;border-bottom:1px solid #1f2a44;font-size:16px}
+    .card .content{padding:14px 16px}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    input[type=range]{width:100%}
+    .btn{cursor:pointer;border:1px solid #24324d;background:#0f1a2e;color:var(--text);padding:8px 12px;border-radius:10px}
+    .btn:hover{border-color:#2f436a}
+    .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid #2a3a5d;color:var(--muted)}
+    .viz{position:relative}
+    #viz{width:100%;height:420px;background:#0b1220;border-bottom-left-radius:14px;border-bottom-right-radius:14px}
+    .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#94a3b8;padding:8px 16px;border-top:1px dashed #203050}
+    .dot{width:10px;height:10px;border-radius:50%}
+    .thin{background:#60a5fa} .thick{background:#a78bfa}
+    .scopeTitle{font-size:12px;color:#94a3b8;margin-bottom:4px}
+    .scopeCanvas{width:100%;height:110px;background:#0b1220;border-radius:10px;border:1px solid #1e293b;display:block}
+    .obs p{margin:6px 0 10px}
+    .obs .fill{color:#86efac;font-weight:700}
+    .note{font-size:12px;color:#94a3b8}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .big{font-size:20px}
+  </style>
 </head>
 <body>
-    <header>
-        <h1>My Portfolio</h1>
-        <nav>
-            <a href="#about">About Me</a>
-            <a href="#skills">Skills</a>
-            <a href="#projects">Projects</a>
-            <a href="#contact">Contact</a>
-        </nav>
-    </header>
+  <header>
+    <h1>橡皮筋声音—模拟器v3（独立音色＋右侧双示波器）</h1>
+    <small>每根弦可独立设定：正弦 / 方波 / 三角 / 锯齿；右侧各自示波器 ~0.01 s 窗口</small>
+  </header>
 
-    <section id="about">
-        <h2>About Me</h2>
-        <p>Hello! I'm [Your Name], a [Your Profession]. I love creating things and solving problems through technology and creativity.</p>
-    </section>
-
-    <section id="skills">
-        <h2>Skills</h2>
-        <div class="skills">
-            <div class="skill">HTML & CSS</div>
-            <div class="skill">JavaScript</div>
-            <div class="skill">Python</div>
-            <div class="skill">React</div>
-            <div class="skill">Arduino Projects</div>
-            <div class="skill">Problem Solving</div>
+  <div class="app">
+    <!-- 左：控制区 -->
+    <section class="card">
+      <h2>实验设置</h2>
+      <div class="content">
+        <label>当前选择</label>
+        <div class="row">
+          <button class="btn" data-select="thin">细橡皮筋</button>
+          <button class="btn" data-select="thick">粗橡皮筋</button>
+          <span class="badge">当前：<span id="currentBand">细</span></span>
         </div>
-    </section>
 
-    <section id="projects">
-        <h2>Projects</h2>
-        <div class="projects">
-            <div class="project">
-                <h3>Project 1</h3>
-                <p>Description of your project 1.</p>
-            </div>
-            <div class="project">
-                <h3>Project 2</h3>
-                <p>Description of your project 2.</p>
-            </div>
-            <div class="project">
-                <h3>Project 3</h3>
-                <p>Description of your project 3.</p>
-            </div>
+        <div class="row" style="width:100%;align-items:flex-start">
+          <div style="flex:1">
+            <div class="note">细弦音色</div>
+            <select id="instrumentThin" class="btn" style="width:100%">
+              <option value="sine">正弦（音叉/长笛）</option>
+              <option value="square">方波（单簧管近似）</option>
+              <option value="triangle">三角（木琴/钟声近似）</option>
+              <option value="sawtooth">锯齿（弦乐/吉他近似）</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <div class="note">粗弦音色</div>
+            <select id="instrumentThick" class="btn" style="width:100%">
+              <option value="sine">正弦（音叉/长笛）</option>
+              <option value="square">方波（单簧管近似）</option>
+              <option value="triangle">三角（木琴/钟声近似）</option>
+              <option value="sawtooth">锯齿（弦乐/吉他近似）</option>
+            </select>
+          </div>
         </div>
+        <small class="note">说明：谐波成分不同 → 音色不同；可分别设置两根弦。</small>
+
+        <label>张力（影响频率）</label>
+        <input id="tension" type="range" min="0.5" max="2.0" step="0.01" value="1.00" />
+
+        <label>阻尼（衰减快慢）</label>
+        <input id="damping" type="range" min="0.5" max="3.0" step="0.01" value="1.20" />
+
+        <label>拨动强度（初始幅度）</label>
+        <input id="pluck" type="range" min="0.1" max="1.0" step="0.01" value="0.30" />
+
+        <div class="row" style="margin-top:6px">
+          <button class="btn" id="softPluck">轻轻拨动</button>
+          <button class="btn" id="hardPluck">用力拨动</button>
+          <label class="row" style="gap:6px"><input id="soundOn" type="checkbox" checked> 播放声音</label>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button class="btn" id="holdBtn">按住正在振动（手指触碰）</button>
+          <small class="note">按住时：声音快速消失；右侧波形幅度随之降低为近乎直线。</small>
+        </div>
+      </div>
     </section>
 
-    <section id="contact">
-        <h2>Contact</h2>
-        <p>Email: your.email@example.com</p>
-        <p>GitHub: <a href="https://github.com/yourusername" target="_blank">github.com/yourusername</a></p>
-        <p>LinkedIn: <a href="https://linkedin.com/in/yourusername" target="_blank">linkedin.com/in/yourusername</a></p>
+    <!-- 中：位移可视化 -->
+    <section class="card viz">
+      <h2>位移可视化（点击橡皮筋拨动）</h2>
+      <canvas id="viz" width="900" height="420"></canvas>
+      <div class="legend">
+        <div class="row"><span class="dot thin"></span>细橡皮筋（默认基频≈440 Hz）</div>
+        <div class="row"><span class="dot thick"></span>粗橡皮筋（默认基频≈220 Hz）</div>
+        <div class="row">单击=轻拨；双击=重拨；长按/按钮=按住停止</div>
+      </div>
     </section>
 
-    <footer>
-        &copy; 2025 Your Name. All rights reserved.
-    </footer>
+    <!-- 右：双示波器（~0.01 s 窗口） -->
+    <section class="card">
+      <h2>右侧波形示波器（0.01 s）</h2>
+      <div class="content">
+        <div class="scopeTitle">细弦波形</div>
+        <canvas id="scopeThin" width="320" height="110" class="scopeCanvas"></canvas>
+        <div class="scopeTitle" style="margin-top:12px">粗弦波形</div>
+        <canvas id="scopeThick" width="320" height="110" class="scopeCanvas"></canvas>
+        <div class="note" style="margin-top:8px">频率高→波峰更密；幅度大→波幅更高；按住时→幅度迅速缩小。</div>
+      </div>
+    </section>
+
+    <!-- 观察与结论 -->
+    <section class="card obs" style="grid-column: 1 / span 3">
+      <h2>观察与结论（自动更新）</h2>
+      <div class="content">
+        <p>1）<strong>描述现象</strong>：我看到橡皮筋在 <span class="fill" id="seeSpeed">——</span> 振动，同时我听到了 <span class="fill" id="hearPitch">——</span> 的、<span class="fill" id="hearLoud">——</span> 的声音。</p>
+        <p>2）<strong>证据</strong>：按住正在振动的橡皮筋后，声音消失、波形几乎成为直线，证明 <span class="fill">声音是由物体振动产生的</span> 。</p>
+        <div class="grid" style="margin-top:8px">
+          <div class="card" style="border:none;background:#0d1629;padding:10px">
+            <div class="big">音调（高低）</div>
+            <div>当前频率：<span class="fill" id="freqRead">0</span> Hz</div>
+          </div>
+          <div class="card" style="border:none;background:#0d1629;padding:10px">
+            <div class="big">响度（大小）</div>
+            <div>当前幅度：<span class="fill" id="ampRead">0.00</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // 基本参数与状态
+    const bands = { thin:{ color:'#60a5fa', baseFreq:440, thickness:2 }, thick:{ color:'#a78bfa', baseFreq:220, thickness:6 } };
+    let current = 'thin';
+    const $ = s=>document.querySelector(s);
+
+    // 控件
+    const ctxBand=$('#currentBand');
+    const tension=$('#tension');
+    const damping=$('#damping');
+    const pluck=$('#pluck');
+    const softPluckBtn=$('#softPluck');
+    const hardPluckBtn=$('#hardPluck');
+    const holdBtn=$('#holdBtn');
+    const soundOn=$('#soundOn');
+    const instrumentThin=$('#instrumentThin');
+    const instrumentThick=$('#instrumentThick');
+
+    // 读数
+    const seeSpeed=$('#seeSpeed');
+    const hearPitch=$('#hearPitch');
+    const hearLoud=$('#hearLoud');
+    const freqRead=$('#freqRead');
+    const ampRead=$('#ampRead');
+
+    // 画布
+    const canvas=document.getElementById('viz');
+    const ctx=canvas.getContext('2d');
+    const scopeThin=document.getElementById('scopeThin');
+    const scopeThick=document.getElementById('scopeThick');
+    const sctxThin=scopeThin.getContext('2d');
+    const sctxThick=scopeThick.getContext('2d');
+
+    // 音频
+    let audioCtx=null, gainNode=null;
+    let oscThin=null, oscThick=null;
+    let analyserThin=null, analyserThick=null;
+    let timeThin=null, timeThick=null;
+    let stringGainThin=null, stringGainThick=null; // 每根弦独立增益
+
+    function initAudio(){
+      if(audioCtx) return;
+      audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value=0.0; gainNode.connect(audioCtx.destination);
+
+      // 两个振荡器（两根弦）
+      oscThin = audioCtx.createOscillator();
+      oscThick = audioCtx.createOscillator();
+      setOscTypes();
+
+      // 每根弦独立增益 → 分别接到各自的示波器
+      stringGainThin = audioCtx.createGain(); stringGainThin.gain.value = 0.0;
+      stringGainThick = audioCtx.createGain(); stringGainThick.gain.value = 0.0;
+
+      analyserThin = audioCtx.createAnalyser();
+      analyserThick = audioCtx.createAnalyser();
+      analyserThin.fftSize = 512; // ~0.0116 s
+      analyserThick.fftSize = 512;
+      timeThin = new Uint8Array(analyserThin.fftSize);
+      timeThick = new Uint8Array(analyserThick.fftSize);
+
+      // 连接：osc → stringGain → analyser → mix → master gain
+      const mixThin = audioCtx.createGain(); mixThin.gain.value=0.5;
+      const mixThick= audioCtx.createGain(); mixThick.gain.value=0.5;
+
+      oscThin.connect(stringGainThin); stringGainThin.connect(analyserThin); analyserThin.connect(mixThin);
+      oscThick.connect(stringGainThick); stringGainThick.connect(analyserThick); analyserThick.connect(mixThick);
+
+      const mix = audioCtx.createGain(); mix.gain.value=1.0;
+      mixThin.connect(mix); mixThick.connect(mix); mix.connect(gainNode);
+
+      oscThin.start(); oscThick.start();
+    }
+
+    function setOscTypes(){
+      if(oscThin) oscThin.type = instrumentThin.value;
+      if(oscThick) oscThick.type = instrumentThick.value;
+    }
+
+    const state={ thin:{A:0,t0:0}, thick:{A:0,t0:0} };
+    const PX=40;
+    const strengthToAmp=s=>Math.min(1,Math.max(0.02,s));
+    const getFreq=k=>bands[k].baseFreq*parseFloat(tension.value);
+
+    function pluckBand(kind,strength){
+      initAudio();
+      const now=performance.now();
+      const S=strengthToAmp(strength);
+      state[kind].A=S; state[kind].t0=now;
+      const f=getFreq(kind);
+      const node=(kind==='thin')?oscThin:oscThick;
+      node.frequency.setTargetAtTime(f,audioCtx.currentTime,0.01);
+      // 声音总体响度（与两弦幅度和相关）
+      if(soundOn.checked){
+        const target=Math.min(1.0,0.5*(state.thin.A+state.thick.A));
+        gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+        gainNode.gain.setTargetAtTime(target,audioCtx.currentTime,0.005);
+      }
+    }
+
+    function holdDown(){
+      initAudio();
+      state.thin.A*=0.1; state.thick.A*=0.1; // 快速减小幅度
+      if(audioCtx){
+        if(stringGainThin) stringGainThin.gain.setTargetAtTime(0.0, audioCtx.currentTime, 0.02);
+        if(stringGainThick) stringGainThick.gain.setTargetAtTime(0.0, audioCtx.currentTime, 0.02);
+        if(gainNode) gainNode.gain.setTargetAtTime(0.0, audioCtx.currentTime, 0.03);
+      }
+    }
+
+    function draw(){
+      const w=canvas.width,h=canvas.height;
+      ctx.clearRect(0,0,w,h);
+      ctx.save(); ctx.globalAlpha=0.15; ctx.strokeStyle='#1e293b';
+      for(let x=0;x<w;x+=30){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+      for(let y=0;y<h;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+      ctx.restore();
+      const yThin=h*0.35, yThick=h*0.7;
+      renderBand('thin', yThin);
+      renderBand('thick', yThick);
+      renderScope(sctxThin, analyserThin, timeThin);
+      renderScope(sctxThick, analyserThick, timeThick);
+      requestAnimationFrame(draw);
+    }
+
+    function renderBand(kind,y0){
+      const now=performance.now();
+      const A0=state[kind].A;
+      const dt=(now-state[kind].t0)/1000;
+      const f=getFreq(kind);
+      const damp=parseFloat(damping.value);
+      const A=A0*Math.exp(-damp*dt);
+      state[kind].A=(A<0.005?0:A);
+
+      // 同步调整该弦的增益 → 示波器幅度随幅值变化
+      if(audioCtx){
+        const g=(kind==='thin'?stringGainThin:stringGainThick);
+        if(g) g.gain.setTargetAtTime(state[kind].A, audioCtx.currentTime, 0.02);
+      }
+
+      const disp=Math.sin(2*Math.PI*f*dt)*state[kind].A*PX;
+      ctx.lineWidth=bands[kind].thickness;
+      ctx.strokeStyle=bands[kind].color;
+      ctx.beginPath(); ctx.moveTo(80,y0);
+      ctx.quadraticCurveTo((canvas.width-80)/2+80, y0+disp, canvas.width-80, y0);
+      ctx.stroke();
+      ctx.fillStyle='#334155';
+      ctx.fillRect(60,y0-12,12,24); ctx.fillRect(canvas.width-72,y0-12,12,24);
+
+      if(current===kind){
+        freqRead.textContent=f.toFixed(0);
+        ampRead.textContent=state[kind].A.toFixed(2);
+        seeSpeed.textContent=f>350?'很快':(f>260?'较快':'较慢');
+        hearPitch.textContent=f>350?'较高':'较低';
+        hearLoud.textContent=state[kind].A>0.5?'较大':(state[kind].A>0.2?'中等':'较小');
+      }
+
+      if(audioCtx && soundOn.checked && gainNode){
+        const target=Math.min(1.0,0.5*(state.thin.A+state.thick.A));
+        const cur=gainNode.gain.value; const next=cur+(target-cur)*0.05;
+        gainNode.gain.setValueAtTime(next,audioCtx.currentTime);
+      }
+    }
+
+    function renderScope(sctx, analyser, buf){
+      if(!analyser) return;
+      analyser.getByteTimeDomainData(buf);
+      const w=sctx.canvas.width, h=sctx.canvas.height;
+      sctx.clearRect(0,0,w,h);
+      sctx.fillStyle='#0b1220'; sctx.fillRect(0,0,w,h);
+      sctx.globalAlpha=0.25; sctx.strokeStyle='#1e293b';
+      for(let x=0;x<w;x+=60){sctx.beginPath();sctx.moveTo(x,0);sctx.lineTo(x,h);sctx.stroke();}
+      sctx.globalAlpha=0.35; sctx.strokeStyle='#94a3b8'; sctx.beginPath(); sctx.moveTo(0,h/2); sctx.lineTo(w,h/2); sctx.stroke(); sctx.globalAlpha=1;
+      sctx.strokeStyle='#22d3ee'; sctx.lineWidth=2; sctx.beginPath();
+      for(let i=0;i<buf.length;i++){
+        const x=i/(buf.length-1)*w; const v=buf[i]/255; const y=(1-v)*h;
+        if(i===0) sctx.moveTo(x,y); else sctx.lineTo(x,y);
+      }
+      sctx.stroke();
+    }
+
+    // 命中检测 & 交互
+    function bandAt(y){
+      const yThin=canvas.height*0.35, yThick=canvas.height*0.7;
+      if(Math.abs(y-yThin)<22) return 'thin';
+      if(Math.abs(y-yThick)<22) return 'thick';
+      return null;
+    }
+
+    let pressTimer=null;
+    canvas.addEventListener('mousedown', e=>{
+      const rect=canvas.getBoundingClientRect();
+      const y=(e.clientY-rect.top)*(canvas.height/rect.height);
+      const k=bandAt(y); if(!k) return; current=k; ctxBand.textContent=(k==='thin'?'细':'粗');
+      pluckBand(k, parseFloat(pluck.value)*0.6);
+      clearTimeout(pressTimer); pressTimer=setTimeout(()=>holdDown(),500);
+    });
+    canvas.addEventListener('mouseup', ()=>clearTimeout(pressTimer));
+    canvas.addEventListener('mouseleave', ()=>clearTimeout(pressTimer));
+    canvas.addEventListener('dblclick', e=>{
+      const rect=canvas.getBoundingClientRect();
+      const y=(e.clientY-rect.top)*(canvas.height/rect.height);
+      const k=bandAt(y); if(!k) return; current=k; ctxBand.textContent=(k==='thin'?'细':'粗');
+      pluckBand(k, Math.max(0.75, parseFloat(pluck.value)));
+    });
+
+    document.querySelectorAll('[data-select]').forEach(btn=>btn.addEventListener('click',()=>{
+      current=btn.getAttribute('data-select'); ctxBand.textContent=(current==='thin'?'细':'粗');
+      freqRead.textContent=getFreq(current).toFixed(0);
+    }));
+    softPluckBtn.addEventListener('click',()=>pluckBand(current, parseFloat(pluck.value)*0.5));
+    hardPluckBtn.addEventListener('click',()=>pluckBand(current, Math.max(0.8, parseFloat(pluck.value))));
+    holdBtn.addEventListener('click', holdDown);
+    instrumentThin.addEventListener('change', ()=>{ initAudio(); setOscTypes(); });
+    instrumentThick.addEventListener('change', ()=>{ initAudio(); setOscTypes(); });
+
+    draw();
+    window.addEventListener('pointerdown',()=>{ if(audioCtx && audioCtx.state==='suspended') audioCtx.resume(); });
+  </script>
 </body>
 </html>
